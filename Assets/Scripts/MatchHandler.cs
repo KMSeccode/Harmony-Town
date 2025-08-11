@@ -2,7 +2,7 @@ using UnityEngine;
 using Nakama;
 using System.Text;
 using System.Collections.Generic;
-
+ 
 public class MatchHandler : MonoBehaviour
 {
     public GameObject playerPrefab;
