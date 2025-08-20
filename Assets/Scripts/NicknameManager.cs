@@ -10,8 +10,7 @@ public class NicknameManager : MonoBehaviour
     [SerializeField] private Text errorText;
     
     private const string NicknameKey = "player_nickname";
-    private IClient nakamaClient;
-    private ISession nakamaSession;
+    private NakamaConnection nakamaConnection; // Reference to existing connection
     
     private void Start()
     {
@@ -19,8 +18,8 @@ public class NicknameManager : MonoBehaviour
         playButton.onClick.AddListener(() => _ = HandleNicknameSubmission());
         errorText.gameObject.SetActive(false);
         
-        // Inicializa cliente Nakama (ajuste conforme sua configuração)
-        nakamaClient = new Client("http", "127.0.0.1", 7350, "defaultkey");
+        // Get reference to existing NakamaConnection
+        nakamaConnection = FindObjectOfType<NakamaConnection>();
 
         // Verifica se já tem nickname salvo
         if (PlayerPrefs.HasKey(NicknameKey))
@@ -44,19 +43,23 @@ public class NicknameManager : MonoBehaviour
             ShowError("Nickname deve ter entre 3 e 16 caracteres!");
             return;
         }
-        
+
         try
         {
-            // Autenticação atualizada para versão mais recente do Nakama
-            nakamaSession = await nakamaClient.AuthenticateDeviceAsync(
-                SystemInfo.deviceUniqueIdentifier, // deviceId (primeiro parâmetro)
-                nickname,                          // username (segundo parâmetro)
-                true                              // create (terceiro parâmetro)
-                );
+        var storageObject = new WriteStorageObject
+        {
+            Collection = "users",
+            Key = "profile",
+            Value = $"{{\"nickname\":\"{nickname}\"}}"
+        };
 
-            // Salva localmente
-            PlayerPrefs.SetString(NicknameKey, nickname);
-            UnityEngine.SceneManagement.SceneManager.LoadScene("HarmonyTown");
+        await nakamaConnection.GetClient().WriteStorageObjectsAsync(
+            nakamaConnection.GetSession(),
+            new[] { storageObject }
+        );
+        
+        PlayerPrefs.SetString(NicknameKey, nickname);
+        UnityEngine.SceneManagement.SceneManager.LoadScene("HarmonyTown");
         }
         catch (System.Exception ex)
         {
@@ -64,16 +67,7 @@ public class NicknameManager : MonoBehaviour
             Debug.LogError(ex);
         }
     }
-    
-    private async Task UpdateNakamaNickname(string nickname)
-    {
-    var storageObject = new Nakama.WriteStorageObject {
-        Collection = "account",
-        Key = "display_name",
-        Value = $"\"{nickname}\""
-    };
-    }
-    
+        
     // Método para ser chamado após autenticação no Nakama
     private void ShowError(string message)
     {
